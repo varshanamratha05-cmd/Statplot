@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Hub - Premium Monitoring</title>
+    <style>
+        :root {
+            --bg: #09090b;
+            --card: #18181b;
+            --primary: #3b82f6;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --text: #fafafa;
+            --text-dim: #a1a1aa;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            max-width: 800px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            padding: 1.5rem 2.5rem;
+            border-radius: 1rem;
+            border: 1px solid #27272a;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid #27272a;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .server-name {
+            font-weight: 700;
+            font-size: 1.25rem;
+            text-transform: capitalize;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            text-transform: uppercase;
+        }
+
+        .badge-running { background: rgba(34, 197, 94, 0.1); color: var(--success); }
+        .badge-failed { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .badge-pending { background: rgba(234, 179, 8, 0.1); color: var(--warning); }
+
+        .reason {
+            font-size: 0.875rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .loader {
+            display: flex;
+            justify-content: center;
+            padding: 4rem;
+        }
+
+        .pulse {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            animation: pulse-animation 1.5s infinite ease-out;
+        }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>MCP Hub</h1>
+        <p style="color: var(--text-dim)">Unified monitoring for your Model Context Protocol ecosystem</p>
+    </div>
+
+    <div id="stats-container" class="stats">
+        <div class="stat-card">
+            <span id="total-count" class="stat-value">-</span>
+            <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-card">
+            <span id="running-count" class="stat-value" style="color: var(--success)">-</span>
+            <span class="stat-label">Running</span>
+        </div>
+        <div class="stat-card">
+            <span id="failed-count" class="stat-value" style="color: var(--danger)">-</span>
+            <span class="stat-label">Failed</span>
+        </div>
+    </div>
+
+    <div id="grid-container" class="grid">
+        <div class="loader"><div class="pulse"></div></div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                const response = await fetch('analysis_report.json');
+                const data = await response.json();
+                
+                document.getElementById('total-count').textContent = data.summary.total;
+                document.getElementById('running-count').textContent = data.summary.running;
+                document.getElementById('failed-count').textContent = data.summary.failed;
+
+                const grid = document.getElementById('grid-container');
+                grid.innerHTML = '';
+
+                data.results.forEach(server => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    
+                    const badgeClass = server.status === 'Running' ? 'badge-running' : 
+                                     (server.status.includes('Pending') ? 'badge-pending' : 'badge-failed');
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span class="server-name">${server.name}</span>
+                            <span class="badge ${badgeClass}">${server.status}</span>
+                        </div>
+                        <p class="reason">${server.reason}</p>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (e) {
+                document.getElementById('grid-container').innerHTML = '<p style="color: var(--danger)">No analysis data found. Run "python mcp_checker.py" first.</p>';
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
