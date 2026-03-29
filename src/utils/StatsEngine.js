@@ -10,6 +10,10 @@ export const categorizeColumns = (data) => {
 
   columns.forEach(col => {
     const values = data.map(row => row[col]).filter(v => v !== null && v !== undefined);
+    if (values.length === 0) {
+      categories[col] = 'categorical';
+      return;
+    }
     const numericValues = values.filter(v => !isNaN(parseFloat(v)) && isFinite(v));
     
     // If more than 80% are numbers, it's numerical; otherwise categorical.
@@ -40,23 +44,22 @@ export const runANOVA = (data, catCol, numCol) => {
   if (groupArrays.length < 2) return null;
 
   try {
-    const fStat = jStat.anova(groupArrays);
-    // jStat.anova returns p-value? No, jStat has f.dist to get p-value from F-stat.
-    // Wait, let's calculate manually or use jStat's built-in if available.
-    // Actually, simple calculation:
-    const k = groupArrays.length; // num groups
-    const N = groupArrays.flat().length; // total N
+    const fStat = jStat.anovafe(...groupArrays);
+    const k = groupArrays.length;
+    const N = groupArrays.flat().length;
     if (N <= k) return null;
 
-    // F-distribution (k-1, N-k)
-    // jStat.anova is for F-score. We then need the p-value:
-    const pValue = 1 - jStat.centralF.cdf(fStat, k - 1, N - k);
+    const df1 = k - 1;
+    const df2 = N - k;
+    const pValue = 1 - jStat.centralF.cdf(fStat, df1, df2);
 
     return {
+      name: 'One-Way ANOVA',
+      type: 'ANOVA',
       fStat,
       pValue,
-      df1: k - 1,
-      df2: N - k,
+      df1,
+      df2,
       interpretation: pValue < 0.05 
         ? "Statistically Significant. There is a meaningful difference between categories." 
         : "Not Statistically Significant. No strong evidence of difference."
@@ -74,6 +77,9 @@ export const runANOVA = (data, catCol, numCol) => {
  * @param {string} col2 - Categorical column 2.
  */
 export const runChiSquare = (data, col1, col2) => {
+  const levelsA = [...new Set(data.map(d => d[col1]))];
+  const levelsB = [...new Set(data.map(d => d[col2]))];
+  
   const contingencyTable = {};
   const rowTotals = {};
   const colTotals = {};
@@ -111,6 +117,8 @@ export const runChiSquare = (data, col1, col2) => {
   const pValue = 1 - jStat.chisquare.cdf(chiSq, df);
 
   return {
+    name: 'Pearson Chi-Square',
+    type: 'Chi-Square',
     chiSq,
     pValue,
     df,

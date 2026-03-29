@@ -1,16 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, Legend, 
   ResponsiveContainer, ScatterChart, Scatter, ZAxis, Cell
 } from 'recharts';
 import { 
   LayoutDashboard, FileText, BarChart3, MapPin, Database, 
-  Activity, Info, Search, BrainCircuit, Microscope, Sparkles
+  Activity, Info, Search, BrainCircuit, Microscope, Sparkles,
+  Zap, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import FileUploader from './components/FileUploader';
 import { categorizeColumns, runANOVA, runChiSquare, summarizeData } from './utils/StatsEngine';
+import { getAIInsights } from './utils/OpenAIClient';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   <button
@@ -51,6 +53,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [summary, setSummary] = useState(null);
+  const [aiInsights, setAiInsights] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
 
   const handleDataLoaded = (newData) => {
     setData(newData);
@@ -58,6 +62,26 @@ export default function App() {
     setCategories(cats);
     setSummary(summarizeData(newData));
     setActiveTab('dashboard');
+  };
+
+  useEffect(() => {
+    if (data && !aiInsights && !loadingAI) {
+      generateAIInsights();
+    }
+  }, [data]);
+
+  const generateAIInsights = async () => {
+    if (!data) return;
+    setLoadingAI(true);
+    try {
+      const insights = await getAIInsights(data.slice(0, 50)); // Only send a sample
+      setAiInsights(insights);
+    } catch (err) {
+      console.error("AI Insight Error:", err);
+      setAiInsights("AI Analysis currently unavailable. Please verify API configuration.");
+    } finally {
+      setLoadingAI(false);
+    }
   };
 
   const filteredData = useMemo(() => {
@@ -135,8 +159,8 @@ export default function App() {
               </div>
             </div>
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">Scientific Data Suite <span className="text-scientific-cyan text-sm uppercase font-mono bg-slate-800 px-3 py-1 rounded-full ml-2">v1.2</span></h1>
-          <p className="text-slate-400 text-lg">Sophisticated AI-driven statistical analysis. Ingest your raw data to begin processing.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">Scientific Data Suite <span className="text-scientific-cyan text-sm uppercase font-mono bg-slate-800 px-3 py-1 rounded-full ml-2">v2.0 AI</span></h1>
+          <p className="text-slate-400 text-lg">Sophisticated AI-driven statistical analysis. Ingest your raw data to begin processing with OpenAI integration.</p>
           <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl mt-12">
             <FileUploader onDataLoaded={handleDataLoaded} />
           </div>
@@ -157,19 +181,22 @@ export default function App() {
               </div>
             </Card>
 
-            <Card title="Significance Agent" className="md:col-span-2 glass-indigo" icon={BrainCircuit}>
+            <Card title="AI Intelligence Agent" className="md:col-span-2 glass-indigo" icon={BrainCircuit}>
               <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
-                  <Sparkles className="w-6 h-6 text-scientific-cyan animate-pulse" />
-                  <p className="text-slate-200 text-sm leading-relaxed">
-                    Analyzing dataset... Automated detectors identified **{statsTests.length} relevant statistical relationships**. 
-                    {statsTests.some(t => t.pValue < 0.05) 
-                      ? " Crucial findings: Detected statistically significant patterns (p < 0.05) requiring immediate attention." 
-                      : " General observation: Data distributions appear within standard variance thresholds."}
-                  </p>
+                <div className="flex items-start gap-4 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+                  <Sparkles className={`w-6 h-6 text-scientific-cyan ${loadingAI ? 'animate-spin' : 'animate-pulse'}`} />
+                  <div className="flex-1">
+                    <h4 className="text-white font-bold text-sm mb-1 uppercase tracking-tighter flex items-center gap-2">
+                       {loadingAI ? "Agent is processing vectors..." : "OpenAI Synthesis Complete"}
+                       {!loadingAI && <Zap className="w-3 h-3 text-yellow-400 fill-yellow-400" />}
+                    </h4>
+                    <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                      {loadingAI ? "Initiating deep neural analysis of data patterns and correlations. Please hold while we synthesize insights..." : (aiInsights || "No insights generated yet.")}
+                    </p>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  {statsTests.slice(0, 2).map((test, index) => (
+                  {statsTests.map((test, index) => (
                     <div key={index} className="p-3 bg-white/5 rounded-xl border border-white/5">
                       <span className="text-[10px] text-slate-500 uppercase font-mono">{test.type}: {test.cols.join(' vs ')}</span>
                       <p className="text-xs text-slate-300 mt-1 line-clamp-2 italic">"{test.interpretation}"</p>
@@ -362,9 +389,14 @@ export default function App() {
               <span className="text-slate-500 text-xs font-mono uppercase tracking-widest">{activeTab}</span>
            </div>
            {data && (
-             <button onClick={() => setData(null)} className="text-slate-400 hover:text-white transition-colors text-xs font-semibold uppercase flex items-center gap-2">
-               <FileText className="w-4 h-4" /> Reset Environment
-             </button>
+             <div className="flex items-center gap-4">
+               <button onClick={generateAIInsights} className="text-scientific-cyan hover:text-white transition-colors text-xs font-semibold uppercase flex items-center gap-2">
+                 <Zap className="w-4 h-4" /> Refresh AI
+               </button>
+               <button onClick={() => setData(null)} className="text-slate-400 hover:text-white transition-colors text-xs font-semibold uppercase flex items-center gap-2">
+                 <FileText className="w-4 h-4" /> Reset Environment
+               </button>
+             </div>
            )}
         </header>
 
@@ -374,7 +406,8 @@ export default function App() {
       </main>
 
       <div className="fixed bottom-4 right-4 pointer-events-none z-50 animate-bounce">
-         <div className="glass px-4 py-2 rounded-full text-[10px] text-scientific-cyan font-mono border border-scientific-cyan/20">
+         <div className="glass px-4 py-2 rounded-full text-[10px] text-scientific-cyan font-mono border border-scientific-cyan/20 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-scientific-cyan animate-pulse"></span>
             CONNECTED: STATISTICAL_NODE_B
          </div>
       </div>
