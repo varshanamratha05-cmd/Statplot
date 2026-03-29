@@ -1,0 +1,28 @@
+:root {
+  --bg: #f7fafc;
+  --text: #0f172a;
+  --muted: #4b5563;
+  --panel: #ffffff;
+  --border: #d9e2ec;
+  --primary: #0b7285;
+  --primary-dark: #0a5968;
+  --danger: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', 'Avenir Next', 'Segoe UI', sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 10% 10%, #dff5ff 0%, transparent 35%),
+    radial-gradient(circle at 90% 5%, #d9f4ea 0%, transparent 30%),
+    var(--bg);
+}
+
+#root {
+  min-height: 100vh;
+}
