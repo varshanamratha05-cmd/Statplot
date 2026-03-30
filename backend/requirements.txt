@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pandas
+scipy
+statsmodels
+supabase
+python-dotenv
+python-multipart
+pg8000

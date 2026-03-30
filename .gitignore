@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.env
+node_env/
+mcp-hub/mcp_config.json
+create_tables.js
+create_tables.py
+npm_fix.ps1
+run_dev.ps1
+
